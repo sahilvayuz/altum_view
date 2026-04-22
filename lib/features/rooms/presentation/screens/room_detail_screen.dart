@@ -4,6 +4,7 @@ import 'package:altum_view/features/camera/controller/camera_controller.dart';
 import 'package:altum_view/features/camera/presentation/screens/camera_detail_screen.dart';
 import 'package:altum_view/features/camera/service/models/camera_model.dart';
 import 'package:altum_view/features/camera/service/remote_service/camera_service.dart';
+import 'package:altum_view/sdk_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,7 @@ class RoomDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final client = context.read<DioClient>();
+    final client = SDKClient.of(context);
     return ChangeNotifierProvider(
       create: (_) => CameraController(CameraService(client))
         ..fetchCameras(room.id),

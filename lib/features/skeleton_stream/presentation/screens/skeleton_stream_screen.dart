@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:altum_view/features/skeleton_stream/service/models/skeleton_model.dart';
 import 'package:altum_view/features/skeleton_stream/service/remote_service/skeleton_stream_service.dart';
+import 'package:altum_view/sdk_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -34,7 +35,7 @@ class SkeletonStreamScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final client = context.read<DioClient>();
+    final client = SDKClient.of(context);
 
     return ChangeNotifierProvider(
       create: (_) => SkeletonStreamController(
