@@ -11,20 +11,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:altum_view/core/design_system/app_theme.dart';
-import 'package:altum_view/core/networking/dio_client.dart';
 import 'package:altum_view/features/skeleton_stream/controller/skeleton_stream_controller.dart';
 
-enum StreamOrientation {
-  landscape,
-  portrait,
-}
+enum StreamOrientation { landscape, portrait }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SkeletonStreamScreen
+// SkeletonStreamScreen — full-screen route (unchanged usage)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SkeletonStreamScreen extends StatelessWidget {
-  final int cameraId;
+  final int    cameraId;
   final String serialNumber;
 
   const SkeletonStreamScreen({
@@ -40,18 +36,27 @@ class SkeletonStreamScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => SkeletonStreamController(
         SkeletonStreamService(
-          client: client,
-          cameraId: cameraId,
+          client:       client,
+          cameraId:     cameraId,
           serialNumber: serialNumber,
         ),
       )..startStream(),
-      child: const _SkeletonPage(),
+      child: _SkeletonPage(
+        cameraId:     cameraId,
+        serialNumber: serialNumber,
+      ),
     );
   }
 }
 
 class _SkeletonPage extends StatelessWidget {
-  const _SkeletonPage();
+  final int    cameraId;
+  final String serialNumber;
+
+  const _SkeletonPage({
+    required this.cameraId,
+    required this.serialNumber,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -62,12 +67,10 @@ class _SkeletonPage extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: Colors.black,
             elevation: 0,
-            title: const Text(
-              'Live View',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-            ),
+            title: const Text('Live View',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
             leading: CupertinoButton(
-              padding: EdgeInsets.zero,
+              padding:   EdgeInsets.zero,
               onPressed: () => Navigator.pop(context),
               child: const Icon(CupertinoIcons.xmark, color: AppTheme.primary),
             ),
@@ -85,14 +88,20 @@ class _SkeletonPage extends StatelessWidget {
                   controller.isStreaming
                       ? CupertinoIcons.stop_circle
                       : CupertinoIcons.play_circle,
-                  size: 28,
-                  color: controller.isStreaming ? AppTheme.error : AppTheme.success,
+                  size:  28,
+                  color: controller.isStreaming
+                      ? AppTheme.error
+                      : AppTheme.success,
                 ),
               ),
             ],
           ),
-          body: const _StreamCanvas(
-            orientation: StreamOrientation.landscape,
+          // Full-screen: fill available body width and height
+          body: AltumStreamView(
+            cameraId:            cameraId,
+            serialNumber:        serialNumber,
+            orientation:         StreamOrientation.landscape,
+            useExternalProvider: true,   // provider already above us
           ),
         );
       },
@@ -101,34 +110,120 @@ class _SkeletonPage extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _StreamCanvas
+// AltumStreamView — reusable embed widget
+//
+// Usage A — standalone (creates its own provider):
+//   AltumStreamView(
+//     cameraId:     camera.id,
+//     serialNumber: camera.serialNumber,
+//     orientation:  StreamOrientation.portrait,
+//     width:        340,
+//     height:       200,
+//   )
+//
+// Usage B — inside SkeletonStreamScreen (provider already in tree):
+//   AltumStreamView(
+//     cameraId:            camera.id,
+//     serialNumber:        camera.serialNumber,
+//     orientation:         StreamOrientation.landscape,
+//     useExternalProvider: true,
+//   )
+//
+// When width/height are omitted the canvas expands to fill its parent
+// (double.infinity × double.infinity), so you can wrap it in any
+// SizedBox / Expanded / AspectRatio you like.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AltumStreamView extends StatelessWidget {
+  final int               cameraId;
+  final String            serialNumber;
+  final StreamOrientation orientation;
+
+  /// Explicit pixel width for the stream box.
+  /// Defaults to double.infinity (fill parent width).
+  final double width;
+
+  /// Explicit pixel height for the stream box.
+  /// When null the height is derived from the image aspect ratio automatically.
+  final double? height;
+
+  /// Set true when a [SkeletonStreamController] provider is already above
+  /// this widget in the tree (e.g. inside [SkeletonStreamScreen]).
+  final bool useExternalProvider;
+
+  const AltumStreamView({
+    super.key,
+    required this.cameraId,
+    required this.serialNumber,
+    this.orientation         = StreamOrientation.landscape,
+    this.width               = double.infinity,
+    this.height,
+    this.useExternalProvider = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // SizedBox HERE gives _StreamCanvas finite constraints immediately.
+    // LayoutBuilder inside _StreamCanvas then sees the correct maxWidth/maxHeight
+    // instead of expanding to the parent's full size.
+    final canvas = SizedBox(
+      width:  width,
+      height: height,
+      child: _StreamCanvas(
+        orientation: orientation,
+        fixedWidth:  width,
+        fixedHeight: height,
+      ),
+    );
+
+    if (useExternalProvider) return canvas;
+
+    final client = SDKClient.of(context);
+    return ChangeNotifierProvider(
+      create: (_) => SkeletonStreamController(
+        SkeletonStreamService(
+          client:       client,
+          cameraId:     cameraId,
+          serialNumber: serialNumber,
+        ),
+      )..startStream(),
+      child: canvas,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _StreamCanvas — internal stateful canvas
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _StreamCanvas extends StatefulWidget {
   final StreamOrientation orientation;
+  final double            fixedWidth;
+  final double?           fixedHeight;
 
-  const _StreamCanvas({required this.orientation});
+  const _StreamCanvas({
+    required this.orientation,
+    required this.fixedWidth,
+    this.fixedHeight,
+  });
 
   @override
   State<_StreamCanvas> createState() => _StreamCanvasState();
 }
 
 class _StreamCanvasState extends State<_StreamCanvas> {
-  // Always store as landscape: _nativeW >= _nativeH
+  // Always stored as landscape dims: _nativeW >= _nativeH
   int? _nativeW;
   int? _nativeH;
 
   @override
   void dispose() {
     // Do NOT call controller.stopStream() here.
-    // The ChangeNotifierProvider above us owns the controller lifetime and will
-    // call controller.dispose() → _service.stop() automatically when the route
-    // is popped.  Calling stopStream() here races with that disposal and causes
-    // "used after dispose" + SocketException errors.
+    // The ChangeNotifierProvider owns the controller lifetime and calls
+    // controller.dispose() → _service.stop() automatically on route pop.
     super.dispose();
   }
 
-  // Uses dart:ui directly — gives raw JPEG pixel dimensions.
   Future<void> _decodeImageSize(Uint8List bytes) async {
     if (_nativeW != null) return;
     try {
@@ -139,7 +234,7 @@ class _StreamCanvasState extends State<_StreamCanvas> {
       frame.image.dispose();
       if (!mounted || w <= 0 || h <= 0) return;
       setState(() {
-        // Ensure we always store longer side as _nativeW (landscape orientation)
+        // Store longer side as _nativeW (landscape orientation)
         if (w >= h) {
           _nativeW = w;
           _nativeH = h;
@@ -155,24 +250,23 @@ class _StreamCanvasState extends State<_StreamCanvas> {
   Widget build(BuildContext context) {
     return Consumer<SkeletonStreamController>(
       builder: (_, controller, __) {
-        // ── Loading ──────────────────────────────────────────────────────────
+        // ── Loading ────────────────────────────────────────────────────────
         if (controller.loading) {
           return const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2),
+                CircularProgressIndicator(
+                    color: AppTheme.primary, strokeWidth: 2),
                 SizedBox(height: 16),
-                Text(
-                  'Connecting to stream…',
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
-                ),
+                Text('Connecting to stream…',
+                    style: TextStyle(color: Colors.white54, fontSize: 14)),
               ],
             ),
           );
         }
 
-        // ── Error ────────────────────────────────────────────────────────────
+        // ── Error ──────────────────────────────────────────────────────────
         if (controller.error != null) {
           return Center(
             child: Padding(
@@ -187,74 +281,72 @@ class _StreamCanvasState extends State<_StreamCanvas> {
         }
 
         final bg = controller.backgroundImage;
+        if (bg != null && _nativeW == null) _decodeImageSize(bg);
 
-        if (bg != null && _nativeW == null) {
-          _decodeImageSize(bg);
-        }
+        return LayoutBuilder(builder: (_, constraints) {
+          // Resolve actual render width
+          final resolvedW = widget.fixedWidth.isInfinite
+              ? (constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.of(context).size.width)
+              : widget.fixedWidth;
 
-        return LayoutBuilder(
-          builder: (_, constraints) {
-            final screenW = constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : MediaQuery.of(context).size.width;
-            return _buildCanvas(controller, screenW);
-          },
-        );
+          return _buildCanvas(controller, resolvedW);
+        });
       },
     );
   }
 
   Widget _buildCanvas(SkeletonStreamController controller, double screenW) {
     final isLandscape = widget.orientation == StreamOrientation.landscape;
-    final bg = controller.backgroundImage;
+    final bg          = controller.backgroundImage;
 
-    // ── Aspect ratio ──────────────────────────────────────────────────────────
-    // _nativeW >= _nativeH (always stored as landscape raw JPEG dims).
+    // ── Resolve render height ────────────────────────────────────────────────
     //
-    // PORTRAIT  — show JPEG as-is (no rotation needed):
-    //   box is short/landscape-shaped: H = screenW * (nativeH / nativeW)
-    //   e.g. 1920×1080 → H = screenW * 0.5625
+    // Priority:
+    //   1. Caller-supplied fixedHeight (explicit sizing)
+    //   2. Computed from image aspect ratio once decoded
+    //   3. Fallback: 16:9 for landscape, 9:16 for portrait
     //
-    // LANDSCAPE — rotate JPEG +90° CW so the scene stands upright:
-    //   after rotation displayed dims swap: W_disp=nativeH, H_disp=nativeW
-    //   H_box = screenW * (nativeW / nativeH)
-    //   e.g. 1920×1080 → H = screenW * 1.7778 (tall portrait box)
+    // Stored dims: _nativeW >= _nativeH (raw landscape JPEG).
+    //
+    // PORTRAIT  — show as-is: H = W * (nativeH / nativeW)   ← short box
+    // LANDSCAPE — rotate +90° CW: H = W * (nativeW / nativeH) ← tall box
 
     final double nW = (_nativeW ?? 1920).toDouble();
     final double nH = (_nativeH ?? 1080).toDouble();
 
-    final double renderedH = isLandscape
-        ? screenW * (nW / nH)  // tall box for rotated landscape scene
-        : screenW * (nH / nW); // short box for as-is landscape JPEG
+    final double renderedH = widget.fixedHeight ??
+        (isLandscape ? screenW * (nW / nH) : screenW * (nH / nW));
 
     final imageStack = SizedBox(
-      width: screenW,
+      width:  screenW,
       height: renderedH,
       child: ClipRect(
         child: Stack(
           children: [
-            // ── Background ──────────────────────────────────────────────────
+            // Background
             Positioned.fill(
               child: bg != null
                   ? _Background(imageBytes: bg, isLandscape: isLandscape)
                   : const ColoredBox(color: Color(0xFF111111)),
             ),
 
-            // ── Skeleton overlay ────────────────────────────────────────────
+            // Skeleton overlay
             if (controller.latestFrame != null &&
                 controller.latestFrame!.persons.isNotEmpty)
               Positioned.fill(
                 child: CustomPaint(
                   painter: _SkeletonPainter(
-                    frame: controller.latestFrame!,
+                    frame:       controller.latestFrame!,
                     isLandscape: isLandscape,
                   ),
                 ),
               ),
 
-            // ── Status badge ────────────────────────────────────────────────
+            // Status badge
             Positioned(
-              top: 12,
+              top:  12,
               left: 12,
               child: _StatusBadge(status: controller.streamStatus),
             ),
@@ -263,17 +355,17 @@ class _StreamCanvasState extends State<_StreamCanvas> {
       ),
     );
 
-    // ── Person count HUD ──────────────────────────────────────────────────────
+    // Person count HUD
     final hud = Container(
-      width: double.infinity,
-      color: Colors.black,
+      width:   double.infinity,
+      color:   Colors.black,
       padding: const EdgeInsets.all(14),
       child: Text(
         '${controller.latestFrame?.persons.length ?? 0} Persons',
         textAlign: TextAlign.center,
         style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
+          color:      Colors.white,
+          fontSize:   18,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -290,19 +382,11 @@ class _StreamCanvasState extends State<_StreamCanvas> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _Background
-//
-// PORTRAIT  — raw JPEG is landscape; show as-is with BoxFit.fill.
-//             Flutter's Image.memory handles EXIF internally for display.
-//
-// LANDSCAPE — rotate +90° CW using RotatedBox so the landscape scene
-//             stands upright. RotatedBox participates in layout (unlike
-//             Transform.rotate), so it reports swapped W↔H to the parent
-//             and the image fills the box with zero overflow/clipping.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Background extends StatelessWidget {
   final Uint8List imageBytes;
-  final bool isLandscape;
+  final bool      isLandscape;
 
   const _Background({required this.imageBytes, required this.isLandscape});
 
@@ -311,19 +395,19 @@ class _Background extends StatelessWidget {
     if (!isLandscape) {
       return Image.memory(
         imageBytes,
-        fit: BoxFit.fill,
+        fit:             BoxFit.fill,
         gaplessPlayback: true,
       );
     }
 
-    // RotatedBox(quarterTurns: 1) = +90° CW
+    // RotatedBox participates in layout → zero overflow, zero crop
     return RotatedBox(
-      quarterTurns: 1,
+      quarterTurns: 1, // +90° CW
       child: Image.memory(
         imageBytes,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.fill,
+        width:           double.infinity,
+        height:          double.infinity,
+        fit:             BoxFit.fill,
         gaplessPlayback: true,
       ),
     );
@@ -336,75 +420,38 @@ class _Background extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final StreamStatus status;
-
   const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    String text = 'Idle';
-    Color color = Colors.grey;
-
-    switch (status) {
-      case StreamStatus.live:
-        text = 'LIVE';
-        color = Colors.red;
-        break;
-      case StreamStatus.connecting:
-        text = 'Connecting';
-        color = Colors.blue;
-        break;
-      case StreamStatus.waitingForFrame:
-        text = 'Waiting';
-        color = Colors.orange;
-        break;
-      case StreamStatus.republishing:
-        text = 'Reconnect';
-        color = Colors.purple;
-        break;
-      case StreamStatus.offline:
-        text = 'Offline';
-        color = Colors.grey;
-        break;
-      case StreamStatus.error:
-        text = 'Error';
-        color = Colors.red;
-        break;
-      case StreamStatus.idle:
-        break;
-    }
+    final (text, color) = switch (status) {
+      StreamStatus.live           => ('LIVE',       Colors.red),
+      StreamStatus.connecting     => ('Connecting', Colors.blue),
+      StreamStatus.waitingForFrame=> ('Waiting',    Colors.orange),
+      StreamStatus.republishing   => ('Reconnect',  Colors.purple),
+      StreamStatus.offline        => ('Offline',    Colors.grey),
+      StreamStatus.error          => ('Error',      Colors.red),
+      StreamStatus.idle           => ('Idle',       Colors.grey),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.18),
+        color:        color.withOpacity(0.18),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      child: Text(text,
+          style: TextStyle(
+            color:      color,
+            fontSize:   12,
+            fontWeight: FontWeight.w700,
+          )),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _SkeletonPainter
-//
-// Camera joint coords: x,y ∈ [0,1]
-//
-// PORTRAIT (no image rotation):
-//   displayX = joint.x * W
-//   displayY = joint.y * H
-//
-// LANDSCAPE (+90° CW image rotation):
-//   +90° CW maps:  camera +X (right) → screen +Y (down)
-//                  camera +Y (down)  → screen -X (left)
-//   displayX = (1.0 - joint.y) * W
-//   displayY =        joint.x  * H
 // ─────────────────────────────────────────────────────────────────────────────
 
 const List<List<int>> _kBones = [
@@ -428,7 +475,7 @@ const List<Color> _kPersonColors = [
 
 class _SkeletonPainter extends CustomPainter {
   final SkeletonFrame frame;
-  final bool isLandscape;
+  final bool          isLandscape;
 
   const _SkeletonPainter({required this.frame, required this.isLandscape});
 
@@ -436,7 +483,7 @@ class _SkeletonPainter extends CustomPainter {
     if (isLandscape) {
       return Offset(
         (1.0 - j.y) * size.width,
-        j.x * size.height,
+        j.x          * size.height,
       );
     }
     return Offset(
@@ -449,14 +496,12 @@ class _SkeletonPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (int pi = 0; pi < frame.persons.length; pi++) {
       final joints = frame.persons[pi];
-      final color = _kPersonColors[pi % _kPersonColors.length];
+      final color  = _kPersonColors[pi % _kPersonColors.length];
 
-      // Draw bones
       for (final bone in _kBones) {
         final ai = bone[0], bi = bone[1];
         if (ai >= joints.length || bi >= joints.length) continue;
         final ja = joints[ai], jb = joints[bi];
-        // Skip zeroed-out joints (undetected keypoints)
         if (ja.x == 0.0 && ja.y == 0.0) continue;
         if (jb.x == 0.0 && jb.y == 0.0) continue;
 
@@ -464,14 +509,13 @@ class _SkeletonPainter extends CustomPainter {
           _toDisplay(ja, size),
           _toDisplay(jb, size),
           Paint()
-            ..color = color.withOpacity(0.9)
+            ..color       = color.withOpacity(0.9)
             ..strokeWidth = 2.5
-            ..strokeCap = StrokeCap.round
-            ..style = PaintingStyle.stroke,
+            ..strokeCap   = StrokeCap.round
+            ..style       = PaintingStyle.stroke,
         );
       }
 
-      // Draw joints
       for (final j in joints) {
         if (j.x == 0.0 && j.y == 0.0) continue;
         final pt = _toDisplay(j, size);
