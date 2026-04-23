@@ -1,19 +1,10 @@
-import 'package:altum_view/app/bootstrap.dart';
-
+import 'package:flutter/material.dart';
 import 'altum_view_sdk.dart';
 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-/// normal mode
-//void main() => bootstrap();
-
-/// sdk mode
-void main() {
-  AltumViewSDK.configure(
+  await AltumViewSDK.initialize(
     embeddedMode: false,
-    clientId: "nkJ1HznwgxwGBnB6",
-    clientSecret: "m2HGxuNuzUk4JiKloTBOAlulv2odRhj9OkM6hzFKJQsSeBtcyLtYBDtGjxonfV3f",
-    scope:
-    "camera:write room:write alert:write person:write "
-        "user:write group:write invitation:write person_info:write",
   );
 }

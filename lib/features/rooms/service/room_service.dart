@@ -14,13 +14,13 @@ class RoomService {
   }
 
   Future<RoomModel> createRoom(String name) async {
-    final resp = await _client.post(ApiConstants.rooms, data: {'name': name});
+    final resp = await _client.post(ApiConstants.rooms, data: {'friendly_name': name});
     final json = resp.data['data']?['room'] as Map<String, dynamic>;
     return RoomModel.fromJson(json);
   }
 
   Future<void> updateRoom(int id, String name) =>
-      _client.patch(ApiConstants.roomById(id), data: {'name': name});
+      _client.patch(ApiConstants.roomById(id), data: {'friendly_name': name});
 
   Future<void> deleteRoom(int id) => _client.delete(ApiConstants.roomById(id));
 }
