@@ -75,25 +75,26 @@ class _SkeletonPage extends StatelessWidget {
               child: const Icon(CupertinoIcons.xmark, color: AppTheme.primary),
             ),
             actions: [
-              CupertinoButton(
-                padding: const EdgeInsets.only(right: 12),
-                onPressed: () async {
-                  if (controller.isStreaming) {
-                    await controller.stopStream();
-                  } else {
-                    await controller.startStream();
-                  }
-                },
-                child: Icon(
-                  controller.isStreaming
-                      ? CupertinoIcons.stop_circle
-                      : CupertinoIcons.play_circle,
-                  size:  28,
-                  color: controller.isStreaming
-                      ? AppTheme.error
-                      : AppTheme.success,
-                ),
-              ),
+              /// pause and start stream button || right now causing issue
+              // CupertinoButton(
+              //   padding: const EdgeInsets.only(right: 12),
+              //   onPressed: () async {
+              //     if (controller.isStreaming) {
+              //       await controller.stopStream();
+              //     } else {
+              //       await controller.startStream();
+              //     }
+              //   },
+              //   child: Icon(
+              //     controller.isStreaming
+              //         ? CupertinoIcons.stop_circle
+              //         : CupertinoIcons.play_circle,
+              //     size:  28,
+              //     color: controller.isStreaming
+              //         ? AppTheme.error
+              //         : AppTheme.success,
+              //   ),
+              // ),
             ],
           ),
           // Full-screen: fill available body width and height
