@@ -90,51 +90,49 @@ class AltumViewSDK {
   /// ------------------------------------------------------
   /// HOST APP WRAPPER
   /// ------------------------------------------------------
-  static Widget wrapProviders({
-    required Widget child,
-  }) {
-    return MultiProvider(
-      providers: [
-        Provider<AuthService>(
-          create: (_) => const AuthService(),
-        ),
-
-        ChangeNotifierProvider<AuthController>(
-          create: (context) => AuthController(
-            context.read<AuthService>(),
-          )..initialize(),
-        ),
-
-        if (isLoggedIn)
-          Provider<DioClient>.value(
-            value: client,
-          ),
-
-        if (isLoggedIn)
-          Provider<RoomService>(
-            create: (_) => RoomService(client),
-          ),
-
-        if (isLoggedIn)
-          ChangeNotifierProvider<RoomController>(
-            create: (context) => RoomController(
-              context.read<RoomService>(),
-            )..fetchRooms(),
-          ),
-
-        if (isLoggedIn)
-          Provider<CameraService>(
-            create: (_) => CameraService(client),
-          ),
-
-        if (isLoggedIn)
-          ChangeNotifierProvider<CameraController>(
-            create: (context) => CameraController(
-              context.read<CameraService>(),
-            ),
-          ),
-      ],
-      child: child,
-    );
-  }
+  // static Widget wrapProviders({required Widget child,}) {
+  //   return MultiProvider(
+  //     providers: [
+  //       Provider<AuthService>(
+  //         create: (_) => const AuthService(),
+  //       ),
+  //
+  //       ChangeNotifierProvider<AuthController>(
+  //         create: (context) => AuthController(
+  //           context.read<AuthService>(),
+  //         )..initialize(),
+  //       ),
+  //
+  //       if (isLoggedIn)
+  //         Provider<DioClient>.value(
+  //           value: client,
+  //         ),
+  //
+  //       if (isLoggedIn)
+  //         Provider<RoomService>(
+  //           create: (_) => RoomService(client),
+  //         ),
+  //
+  //       if (isLoggedIn)
+  //         ChangeNotifierProvider<RoomController>(
+  //           create: (context) => RoomController(
+  //             context.read<RoomService>(),
+  //           )..fetchRooms(),
+  //         ),
+  //
+  //       if (isLoggedIn)
+  //         Provider<CameraService>(
+  //           create: (_) => CameraService(client),
+  //         ),
+  //
+  //       if (isLoggedIn)
+  //         ChangeNotifierProvider<CameraController>(
+  //           create: (context) => CameraController(
+  //             context.read<CameraService>(),
+  //           ),
+  //         ),
+  //     ],
+  //     child: child,
+  //   );
+  // }
 }
