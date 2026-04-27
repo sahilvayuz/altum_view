@@ -16,6 +16,7 @@ class ApiConstants {
 
   // ── Cameras ───────────────────────────────────────────────────────────────
   static const String cameras                        = '/cameras';
+  static String camerasBy(String sn)       => '/cameras?serial_number=$sn';
   static String cameraById(int id)                   => '/cameras/$id';
   static String cameraBackground(int id)             => '/cameras/$id/background';
   static String cameraStreamToken(int id)            => '/cameras/$id/streamtoken';

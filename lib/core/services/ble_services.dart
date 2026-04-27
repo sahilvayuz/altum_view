@@ -368,12 +368,24 @@ class BleService {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   Future<void> _requestPermissions() async {
+    // Location must be granted first on Android < 12
+    final location = await Permission.location.request();
+    if (location.isPermanentlyDenied) {
+      throw const BleException(
+          'Location permission permanently denied — enable it in Settings');
+    }
+
     final scan    = await Permission.bluetoothScan.request();
     final connect = await Permission.bluetoothConnect.request();
+
+    if (scan.isPermanentlyDenied || connect.isPermanentlyDenied) {
+      throw const BleException(
+          'Bluetooth permission permanently denied — enable it in Settings');
+    }
+
     if (!scan.isGranted || !connect.isGranted) {
       throw const BleException('Bluetooth permissions not granted');
     }
-    if (await Permission.location.isDenied) await Permission.location.request();
   }
 
   Future<void> _assertBluetoothOn() async {

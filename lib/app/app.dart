@@ -1,3 +1,8 @@
+import 'package:altum_view/core/services/ble_services.dart';
+import 'package:altum_view/features/device_connection/controller/device_connection_controller.dart';
+import 'package:altum_view/features/device_connection/controller/wifi_controller.dart';
+import 'package:altum_view/features/device_connection/service/device_connection_service.dart';
+import 'package:altum_view/features/device_connection/service/wifi_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,13 +24,10 @@ class AltumViewApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
 
-    /// -------------------------------
-    /// LOGGED IN
-    /// -------------------------------
+    // ── Logged in ──────────────────────────────────────────────────────────
     if (auth.status == AuthStatus.success && auth.token != null) {
-      final client = DioClient(
-        accessToken: auth.token!,
-      );
+      final client = DioClient(accessToken: auth.token!);
+      final ble    = context.read<BleService>();
 
       return MultiProvider(
         providers: [
@@ -34,36 +36,43 @@ class AltumViewApp extends StatelessWidget {
           Provider<RoomService>(
             create: (_) => RoomService(client),
           ),
-
           ChangeNotifierProvider<RoomController>(
-            create: (context) => RoomController(
-              context.read<RoomService>(),
-            )..fetchRooms(),
+            create: (ctx) => RoomController(ctx.read<RoomService>())..fetchRooms(),
+          ),
+
+          Provider<DeviceConnectionService>(
+            create: (_) => DeviceConnectionService(ble: ble, client: client),
+          ),
+          ChangeNotifierProvider<DeviceConnectionController>(
+            create: (ctx) => DeviceConnectionController(
+              ctx.read<DeviceConnectionService>(),
+            ),
+          ),
+
+          Provider<WifiService>(
+            create: (_) => WifiService(ble),
+          ),
+          ChangeNotifierProvider<WifiController>(
+            create: (ctx) => WifiController(ctx.read<WifiService>()),
           ),
         ],
         child: const _AuthenticatedApp(),
       );
     }
 
-    /// -------------------------------
-    /// LOADING
-    /// -------------------------------
+    // ── Loading ────────────────────────────────────────────────────────────
     if (auth.status == AuthStatus.loading) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
         home: const Scaffold(
           backgroundColor: AppTheme.background,
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
+          body: Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
-    /// -------------------------------
-    /// ERROR
-    /// -------------------------------
+    // ── Error ──────────────────────────────────────────────────────────────
     if (auth.status == AuthStatus.error) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -76,10 +85,7 @@ class AltumViewApp extends StatelessWidget {
               child: Text(
                 auth.error ?? 'Login Failed',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 16,
-                ),
+                style: const TextStyle(color: Colors.red, fontSize: 16),
               ),
             ),
           ),
@@ -87,16 +93,12 @@ class AltumViewApp extends StatelessWidget {
       );
     }
 
-    /// -------------------------------
-    /// DEFAULT = LOGIN
-    /// -------------------------------
+    // ── Default = login ────────────────────────────────────────────────────
     return const _UnauthenticatedApp();
   }
 }
 
-/// -------------------------------------------
-/// LOGIN APP
-/// -------------------------------------------
+// ── Login app ─────────────────────────────────────────────────────────────────
 
 class _UnauthenticatedApp extends StatelessWidget {
   const _UnauthenticatedApp();
@@ -111,9 +113,7 @@ class _UnauthenticatedApp extends StatelessWidget {
   }
 }
 
-/// -------------------------------------------
-/// AUTHENTICATED APP
-/// -------------------------------------------
+// ── Authenticated app ─────────────────────────────────────────────────────────
 
 class _AuthenticatedApp extends StatelessWidget {
   const _AuthenticatedApp();
@@ -128,9 +128,7 @@ class _AuthenticatedApp extends StatelessWidget {
   }
 }
 
-/// -------------------------------------------
-/// MAIN SHELL
-/// -------------------------------------------
+// ── Main shell ────────────────────────────────────────────────────────────────
 
 class _MainShell extends StatefulWidget {
   const _MainShell();
@@ -150,49 +148,32 @@ class _MainShellState extends State<_MainShell> {
         index: _tab,
         children: [
           const RoomsScreen(),
-          const _PlaceholderScreen(
-            'Alerts',
-            CupertinoIcons.bell_fill,
-          ),
-          const _PlaceholderScreen(
-            'People',
-            CupertinoIcons.person_2_fill,
-          ),
-          _AccountScreen(
-            onSignOut: () {
-              context.read<AuthController>().signOut();
-            },
-          ),
+          const _PlaceholderScreen('Alerts',  CupertinoIcons.bell_fill),
+          const _PlaceholderScreen('People',  CupertinoIcons.person_2_fill),
+          _AccountScreen(onSignOut: () => context.read<AuthController>().signOut()),
         ],
       ),
       bottomNavigationBar: _BottomNav(
         selected: _tab,
-        onTap: (index) {
-          setState(() => _tab = index);
-        },
+        onTap: (i) => setState(() => _tab = i),
       ),
     );
   }
 }
 
-/// -------------------------------------------
-/// BOTTOM NAV
-/// -------------------------------------------
+// ── Bottom nav ────────────────────────────────────────────────────────────────
 
 class _BottomNav extends StatelessWidget {
-  final int selected;
-  final ValueChanged<int> onTap;
+  final int                selected;
+  final ValueChanged<int>  onTap;
 
-  const _BottomNav({
-    required this.selected,
-    required this.onTap,
-  });
+  const _BottomNav({required this.selected, required this.onTap});
 
-  static const items = [
-    (CupertinoIcons.house_fill, 'Rooms'),
-    (CupertinoIcons.bell_fill, 'Alerts'),
-    (CupertinoIcons.person_2_fill, 'People'),
-    (CupertinoIcons.person_crop_circle_fill, 'Account'),
+  static const _items = [
+    (CupertinoIcons.house_fill,             'Rooms'),
+    (CupertinoIcons.bell_fill,              'Alerts'),
+    (CupertinoIcons.person_2_fill,          'People'),
+    (CupertinoIcons.person_crop_circle_fill,'Account'),
   ];
 
   @override
@@ -204,10 +185,9 @@ class _BottomNav extends StatelessWidget {
         child: SizedBox(
           height: 60,
           child: Row(
-            children: List.generate(items.length, (i) {
+            children: List.generate(_items.length, (i) {
               final active = selected == i;
-              final item = items[i];
-
+              final item   = _items[i];
               return Expanded(
                 child: GestureDetector(
                   onTap: () => onTap(i),
@@ -215,23 +195,15 @@ class _BottomNav extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        item.$1,
-                        color: active
-                            ? AppTheme.primary
-                            : AppTheme.onSurfaceSub,
-                      ),
+                      Icon(item.$1,
+                          color: active ? AppTheme.primary : AppTheme.onSurfaceSub),
                       const SizedBox(height: 4),
                       Text(
                         item.$2,
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: active
-                              ? AppTheme.primary
-                              : AppTheme.onSurfaceSub,
+                          fontSize:   10,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                          color:      active ? AppTheme.primary : AppTheme.onSurfaceSub,
                         ),
                       ),
                     ],
@@ -246,12 +218,10 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
-/// -------------------------------------------
-/// PLACEHOLDER
-/// -------------------------------------------
+// ── Placeholder ───────────────────────────────────────────────────────────────
 
 class _PlaceholderScreen extends StatelessWidget {
-  final String title;
+  final String   title;
   final IconData icon;
 
   const _PlaceholderScreen(this.title, this.icon);
@@ -264,27 +234,17 @@ class _PlaceholderScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 48,
-              color: AppTheme.onSurfaceSub,
-            ),
+            Icon(icon, size: 48, color: AppTheme.onSurfaceSub),
             const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppTheme.onSurface,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            Text(title,
+                style: const TextStyle(
+                  color:      AppTheme.onSurface,
+                  fontSize:   20,
+                  fontWeight: FontWeight.w700,
+                )),
             const SizedBox(height: 6),
-            const Text(
-              'Coming soon',
-              style: TextStyle(
-                color: AppTheme.onSurfaceSub,
-              ),
-            ),
+            const Text('Coming soon',
+                style: TextStyle(color: AppTheme.onSurfaceSub)),
           ],
         ),
       ),
@@ -292,25 +252,17 @@ class _PlaceholderScreen extends StatelessWidget {
   }
 }
 
-/// -------------------------------------------
-/// ACCOUNT
-/// -------------------------------------------
+// ── Account ───────────────────────────────────────────────────────────────────
 
 class _AccountScreen extends StatelessWidget {
   final VoidCallback onSignOut;
 
-  const _AccountScreen({
-    required this.onSignOut,
-  });
+  const _AccountScreen({required this.onSignOut});
 
   @override
   Widget build(BuildContext context) {
-    final token =
-        context.watch<AuthController>().token ?? '';
-
-    final shortToken = token.length > 20
-        ? '${token.substring(0, 20)}...'
-        : token;
+    final token      = context.watch<AuthController>().token ?? '';
+    final shortToken = token.length > 20 ? '${token.substring(0, 20)}…' : token;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -318,24 +270,19 @@ class _AccountScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Account',
                 style: TextStyle(
-                  color: AppTheme.onBackground,
-                  fontSize: 30,
+                  color:      AppTheme.onBackground,
+                  fontSize:   30,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Token: $shortToken',
-                style: const TextStyle(
-                  color: AppTheme.onSurfaceSub,
-                ),
-              ),
+              Text('Token: $shortToken',
+                  style: const TextStyle(color: AppTheme.onSurfaceSub)),
               const Spacer(),
               SizedBox(
                 width: double.infinity,

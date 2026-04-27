@@ -1,4 +1,6 @@
 import 'package:altum_view/core/design_system/app_theme.dart';
+import 'package:altum_view/features/device_connection/controller/device_connection_controller.dart';
+import 'package:altum_view/features/device_connection/presentation/screens/device_connection_screen.dart';
 import 'package:altum_view/features/rooms/controller/room_controller.dart';
 import 'package:altum_view/features/rooms/presentation/screens/room_detail_screen.dart';
 import 'package:altum_view/features/rooms/presentation/widgets/room_card.dart';

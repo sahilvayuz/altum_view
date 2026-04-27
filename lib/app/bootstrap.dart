@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:altum_view/core/services/ble_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,9 +10,7 @@ import 'package:altum_view/sdk_config.dart';
 import 'package:altum_view/features/auth/controller/auth_controller.dart';
 import 'package:altum_view/features/auth/service/auth_service.dart';
 
-Future<void> bootstrap({
-  bool sdkMode = false,
-}) async {
+Future<void> bootstrap({bool sdkMode = false}) async {
   try {
     if (sdkMode) {
       SDKConfig.enableSDK();
@@ -30,15 +29,16 @@ Future<void> bootstrap({
               context.read<AuthService>(),
             )..initialize(),
           ),
+
+          // ── BleService lives here so it's available app-wide ───────────────
+          Provider<BleService>(
+            create: (_) => BleService(),
+          ),
         ],
         child: const AltumViewApp(),
       ),
     );
   } catch (error, stack) {
-    log(
-      'Unhandled error: $error',
-      error: error,
-      stackTrace: stack,
-    );
+    log('Unhandled error: $error', error: error, stackTrace: stack);
   }
 }
